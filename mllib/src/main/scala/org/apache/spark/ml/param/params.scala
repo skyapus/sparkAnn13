@@ -62,6 +62,11 @@ class Param[T] (
       s"$name: $doc"
     }
   }
+
+  /** Check that the array length is greater than lowerBound. */
+  def arrayLengthGt[T](lowerBound: Double): Array[T] => Boolean = { (value: Array[T]) =>
+    value.length > lowerBound
+  }
 }
 
 // specialize primitive-typed params because Java doesn't recognize scala.Double, scala.Int, ...
