@@ -24,9 +24,16 @@ import org.apache.spark.mllib.evaluation.MulticlassMetrics
 import org.apache.spark.mllib.linalg.Vectors
 import org.apache.spark.mllib.util.MLlibTestSparkContext
 import org.apache.spark.mllib.util.TestingUtils._
-import org.apache.spark.sql.Row
+import org.apache.spark.sql.{SQLContext, Row}
 
 class MultilayerPerceptronClassifierSuite extends SparkFunSuite with MLlibTestSparkContext {
+
+  private var sqlContext: SQLContext = _
+
+  override def beforeAll(): Unit = {
+    super.beforeAll()
+    sqlContext = new SQLContext(sc)
+  }
 
   test("XOR function learning as binary classification problem with two outputs.") {
     val dataFrame = sqlContext.createDataFrame(Seq(

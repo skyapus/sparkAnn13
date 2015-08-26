@@ -46,6 +46,13 @@ sealed trait Vector extends Serializable {
   def size: Int
 
   /**
+   * Number of active entries.  An "active entry" is an element which is explicitly stored,
+   * regardless of its value.  Note that inactive entries have value 0.
+   */
+  def numActives: Int
+
+
+  /**
    * Converts the instance to a double array.
    */
   def toArray: Array[Double]
@@ -93,7 +100,7 @@ sealed trait Vector extends Serializable {
   /**
    * Converts the instance to a breeze vector.
    */
-  private[mllib] def toBreeze: BV[Double]
+  private[spark] def toBreeze: BV[Double]
 
   /**
    * Gets the value of the ith element.
@@ -116,6 +123,12 @@ sealed trait Vector extends Serializable {
    *          with type `Double`.
    */
   private[spark] def foreachActive(f: (Int, Double) => Unit)
+
+  /**
+   * Find the index of a maximal element.  Returns the first maximal element in case of a tie.
+   * Returns -1 if vector has length 0.
+   */
+  def argmax: Int
 }
 
 /**
@@ -287,7 +300,7 @@ object Vectors {
   /**
    * Creates a vector instance from a breeze vector.
    */
-  private[mllib] def fromBreeze(breezeVector: BV[Double]): Vector = {
+  private[spark] def fromBreeze(breezeVector: BV[Double]): Vector = {
     breezeVector match {
       case v: BDV[Double] =>
         if (v.offset == 0 && v.stride == 1 && v.length == v.data.length) {
@@ -484,7 +497,7 @@ class DenseVector(val values: Array[Double]) extends Vector {
 
   override def toArray: Array[Double] = values
 
-  private[mllib] override def toBreeze: BV[Double] = new BDV[Double](values)
+  private[spark] override def toBreeze: BV[Double] = new BDV[Double](values)
 
   override def apply(i: Int) = values(i)
 
@@ -517,6 +530,26 @@ class DenseVector(val values: Array[Double]) extends Vector {
       i += 1
     }
     result
+  }
+
+  override def numActives: Int = size
+
+  override def argmax: Int = {
+    if (size == 0) {
+      -1
+    } else {
+      var maxIdx = 0
+      var maxValue = values(0)
+      var i = 1
+      while (i < size) {
+        if (values(i) > maxValue) {
+          maxIdx = i
+          maxValue = values(i)
+        }
+        i += 1
+      }
+      maxIdx
+    }
   }
 }
 
@@ -558,7 +591,7 @@ class SparseVector(
     new SparseVector(size, indices.clone(), values.clone())
   }
 
-  private[mllib] override def toBreeze: BV[Double] = new BSV[Double](indices, values, size)
+  private[spark] override def toBreeze: BV[Double] = new BSV[Double](indices, values, size)
 
   private[spark] override def foreachActive(f: (Int, Double) => Unit) = {
     var i = 0
@@ -592,6 +625,53 @@ class SparseVector(
       k += 1
     }
     result
+  }
+
+  override def numActives: Int = values.length
+
+  override def argmax: Int = {
+    if (size == 0) {
+      -1
+    } else {
+      // Find the max active entry.
+      var maxIdx = indices(0)
+      var maxValue = values(0)
+      var maxJ = 0
+      var j = 1
+      val na = numActives
+      while (j < na) {
+        val v = values(j)
+        if (v > maxValue) {
+          maxValue = v
+          maxIdx = indices(j)
+          maxJ = j
+        }
+        j += 1
+      }
+
+      // If the max active entry is nonpositive and there exists inactive ones, find the first zero.
+      if (maxValue <= 0.0 && na < size) {
+        if (maxValue == 0.0) {
+          // If there exists an inactive entry before maxIdx, find it and return its index.
+          if (maxJ < maxIdx) {
+            var k = 0
+            while (k < maxJ && indices(k) == k) {
+              k += 1
+            }
+            maxIdx = k
+          }
+        } else {
+          // If the max active value is negative, find and return the first inactive index.
+          var k = 0
+          while (k < na && indices(k) == k) {
+            k += 1
+          }
+          maxIdx = k
+        }
+      }
+
+      maxIdx
+    }
   }
 }
 

@@ -18,11 +18,10 @@
 package org.apache.spark.ml.classification
 
 import org.apache.spark.annotation.Experimental
-import org.apache.spark.ml.param.shared.{HasTol, HasMaxIter, HasSeed}
-import org.apache.spark.ml.{PredictorParams, PredictionModel, Predictor}
-import org.apache.spark.ml.param.{IntParam, ParamValidators, IntArrayParam, ParamMap}
-import org.apache.spark.ml.util.Identifiable
+import org.apache.spark.ml.{Estimator, Identifiable}
+import org.apache.spark.ml.impl.estimator.{PredictionModel, Predictor, PredictorParams}
 import org.apache.spark.ml.ann.{FeedForwardTrainer, FeedForwardTopology}
+import org.apache.spark.ml.param._
 import org.apache.spark.mllib.linalg.{Vectors, Vector}
 import org.apache.spark.mllib.regression.LabeledPoint
 import org.apache.spark.sql.DataFrame
@@ -136,7 +135,7 @@ class MultilayerPerceptronClassifier(override val uid: String)
 
   def this() = this(Identifiable.randomUID("mlpc"))
 
-  override def copy(extra: ParamMap): MultilayerPerceptronClassifier = defaultCopy(extra)
+  def copy(extra: ParamMap): MultilayerPerceptronClassifier = defaultCopy(extra)
 
   /**
    * Train a model using the given dataset and parameters.
@@ -146,10 +145,14 @@ class MultilayerPerceptronClassifier(override val uid: String)
    * @param dataset Training dataset
    * @return Fitted model
    */
-  override protected def train(dataset: DataFrame): MultilayerPerceptronClassifierModel = {
+   protected def train(dataset: DataFrame): MultilayerPerceptronClassifierModel = {
+    train(dataset,ParamMap.empty)
+  }
+
+  override protected def train(dataset: DataFrame, paramMap:ParamMap): MultilayerPerceptronClassifierModel = {
     val myLayers = $(layers)
     val labels = myLayers.last
-    val lpData = extractLabeledPoints(dataset)
+    val lpData = extractLabeledPoints(dataset, ParamMap.empty)
     val data = lpData.map(lp => LabelConverter.encodeLabeledPoint(lp, labels))
     val topology = FeedForwardTopology.multiLayerPerceptron(myLayers, true)
     val FeedForwardTrainer = new FeedForwardTrainer(topology, myLayers(0), myLayers.last)
@@ -187,7 +190,21 @@ class MultilayerPerceptronClassifierModel private[ml] (
     LabelConverter.decodeLabel(mlpModel.predict(features))
   }
 
-  override def copy(extra: ParamMap): MultilayerPerceptronClassifierModel = {
+  def copy(extra: ParamMap): MultilayerPerceptronClassifierModel = {
     copyValues(new MultilayerPerceptronClassifierModel(uid, layers, weights), extra)
   }
-}
+
+  /**
+   * Create a copy of the model.
+   * The copy is shallow, except for the embedded paramMap, which gets a deep copy.
+   */
+  //TODO check how this is used
+  override protected def copy(): MultilayerPerceptronClassifierModel ={
+    new MultilayerPerceptronClassifierModel(uid, layers, weights)
+  }
+
+  //TODO how to use this
+  val fittingParamMap: ParamMap = ParamMap.empty
+
+  //TODO parent
+  val parent: Estimator[MultilayerPerceptronClassifierModel] = null}

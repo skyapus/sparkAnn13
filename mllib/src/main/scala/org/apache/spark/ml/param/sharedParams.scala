@@ -149,3 +149,36 @@ private[ml] trait HasCheckpointInterval extends Params {
   /** @group getParam */
   def getCheckpointInterval: Int = get(checkpointInterval)
 }
+
+/**
+ * Trait for shared param seed (default: this.getClass.getName.hashCode.toLong).
+ */
+private[ml] trait HasSeed extends Params {
+
+  /**
+   * Param for random seed.
+   * @group param
+   */
+  final val seed: LongParam = new LongParam(this, "seed", "random seed")
+
+  //setDefault(seed, this.getClass.getName.hashCode.toLong)
+
+  /** @group getParam */
+  final def getSeed: Long = get(seed)
+}
+
+/**
+ * Trait for shared param tol.
+ */
+private[ml] trait HasTol extends Params {
+
+  /**
+   * Param for the convergence tolerance for iterative algorithms.
+   * @group param
+   */
+  final val tol: DoubleParam = new DoubleParam(this, "tol", "the convergence tolerance for iterative algorithms")
+
+  /** @group getParam */
+  final def getTol: Double = get(tol)
+}
+

@@ -17,6 +17,7 @@
 
 package org.apache.spark.mllib.util
 
+import org.apache.spark.sql.SQLContext
 import org.scalatest.Suite
 import org.scalatest.BeforeAndAfterAll
 
@@ -37,6 +38,7 @@ trait MLlibTestSparkContext extends BeforeAndAfterAll { self: Suite =>
     if (sc != null) {
       sc.stop()
     }
+
     super.afterAll()
   }
 }

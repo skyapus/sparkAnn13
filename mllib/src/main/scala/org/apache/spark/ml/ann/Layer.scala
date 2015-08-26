@@ -696,7 +696,7 @@ private[ann] class ANNGradient(topology: Topology, dataStacker: DataStacker) ext
  * @param inputSize size of the input vectors
  * @param outputSize size of the output vectors
  */
-private[ann] class DataStacker(stackSize: Int, inputSize: Int, outputSize: Int)
+private[spark] class DataStacker(stackSize: Int, inputSize: Int, outputSize: Int)
   extends Serializable {
 
   /**
